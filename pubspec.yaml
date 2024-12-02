@@ -1,0 +1,37 @@
+name: guidedlayout2_1748
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+
+environment:
+  sdk: ^3.5.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  font_awesome_flutter: ^10.0.0
+  intl: ^0.19.0
+  image_picker: ^1.0.4
+  # uuid: ^3.0.6
+  pdf: ^3.11.1
+  # barcode_widget: ^2.0.4
+  printing: ^5.12.0
+  # responsive_sizer: ^3.3.1
+  flutter_riverpod: ^2.6.1
+  http: ^1.2.2
+
+dev_dependencies:
+  camera: ^0.10.5+2 
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  mobile_scanner: ^3.2.0 
+  path_provider: ^2.0.15 
+  # qr_flutter: ^4.1.0
+
+flutter:
+  assets:
+    - images/scanner.png
+    - images/abs.jpeg
+  uses-material-design: true
