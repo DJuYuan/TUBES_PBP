@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:guidedlayout2_1748/View/Profile/Camera/camera.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert'; 
+import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io'; // Untuk File image
-import 'package:flutter/services.dart'; // Untuk PlatformException
-// import 'package:guidedlayout2_1748/View/Profile/Camera/camera.dart';
+import 'package:guidedlayout2_1748/entity/user.dart';  // Mengimpor User
+import 'package:guidedlayout2_1748/client/user.dart';  // Mengimpor fungsi dari client
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -13,35 +14,87 @@ class EditProfilePage extends StatefulWidget {
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
-  File? image; // Menyimpan gambar yang diambil
+  File? image;
+  TextEditingController usernameController = TextEditingController();
+  TextEditingController heightController = TextEditingController();
+  TextEditingController weightController = TextEditingController();
+  String userId = '';
 
-  // Fungsi untuk memilih gambar dari galeri
-  Future pickImage() async {
+  @override
+  void initState() {
+    super.initState();
+    fetchUserProfileData();
+  }
+
+  // Mengambil data profil pengguna
+  Future<void> fetchUserProfileData() async {
     try {
-      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
-
-      if (image == null) return;
-
+      User user = await UserClient.fetchUserProfile();  // Menggunakan fungsi fetchUserProfile yang diimpor
       setState(() {
-        this.image = File(image.path);
+        userId = user.id;
+        usernameController.text = user.username;
+        heightController.text = user.tinggi.toString();
+        weightController.text = user.berat.toString();
       });
-    } on PlatformException catch (e) {
-      debugPrint('Failed to pick image: $e');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error loading profile: $e")));
     }
   }
 
-  // Fungsi untuk mengambil gambar dengan kamera
-  Future pickImageC() async {
+  // Fungsi untuk memilih gambar profil
+  Future<void> pickImage() async {
     try {
-      final image = await ImagePicker().pickImage(source: ImageSource.camera);
-
-      if (image == null) return;
+      final pickedImage = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (pickedImage == null) return;
 
       setState(() {
-        this.image = File(image.path);
+        image = File(pickedImage.path);
       });
-    } on PlatformException catch (e) {
-      debugPrint('Failed to pick image: $e');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error picking image: $e")));
+    }
+  }
+
+  // Fungsi untuk memperbarui profil pengguna
+  Future<void> updateUserProfileData() async {
+    
+      // Membuat objek User dari input data
+      
+      User updatedUser = User(
+        id: userId,
+        username: usernameController.text,
+        berat: int.parse(weightController.text),
+        tinggi: int.parse(heightController.text),
+      );
+
+    try {  
+      await UserClient.updateUserProfile(updatedUser);
+      // Memanggil fungsi updateUserProfile
+      // final response = await updateUserProfile(updatedUser);
+      // final response = await http.put(
+      //   Uri.parse('https://10.0.2.2:8000/api/users'),
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     // 'Authorization': 'Bearer YOUR_API_TOKEN',
+      //   },
+      //   body: json.encode(updatedUser),
+      // );
+
+      // User user = await fetchUserProfile();
+
+      // if (response.statusCode == 200) {
+      //   // ScaffoldMessenger.of(context).showSnackBar(
+      //   //   const SnackBar(content: Text('Profile updated successfully!')),
+      //   // );
+        await fetchUserProfileData();
+        Navigator.pop(context, true);
+      // } else {
+      //   throw Exception('Failed to update profile: ${response.reasonPhrase}');
+      // }
+    } catch (err) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error updating profile: $err")),
+      );
     }
   }
 
@@ -52,106 +105,94 @@ class _EditProfilePageState extends State<EditProfilePage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(
+        title: const Text(
           'Edit Profile',
           style: TextStyle(color: Colors.black),
         ),
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Colors.black,
-          ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(height: 10),
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: Colors.grey[200],
-            backgroundImage: image != null ? FileImage(image!) : null,
-            child: image == null ? Icon(Icons.person, size: 50, color: Colors.grey[700]) : null,
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              // Tampilkan pop-up untuk pilihan foto
-              showModalBottomSheet(
-                context: context,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                builder: (BuildContext context) {
-                  return PopupUploadFoto(
-                    pickImage: pickImage,
-                    pickImageC: pickImageC,
-                  );
-                },
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+      body: usernameController.text.isEmpty // Tampilkan loading jika data belum diisi
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 20),
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage: image != null ? FileImage(image!) : null,
+                    child: image == null
+                        ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: pickImage,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Text('Upload Foto', style: TextStyle(color: Colors.white)),
+                  ),
+                  const SizedBox(height: 20),
+                  ProfileTextField(
+                    controller: usernameController,
+                    icon: Icons.person,
+                    label: 'Username',
+                  ),
+                  ProfileTextField(
+                    controller: heightController,
+                    icon: Icons.height,
+                    label: 'Tinggi (cm)',
+                  ),
+                  ProfileTextField(
+                    controller: weightController,
+                    icon: Icons.monitor_weight,
+                    label: 'Berat (kg)',
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: updateUserProfileData,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 12),
+                    ),
+                    child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+                  ),
+                ],
               ),
             ),
-            child: Text(
-              'Upload Foto',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-          SizedBox(height: 20),
-          ProfileTextField(
-            icon: Icons.person,
-            label: 'Username',
-          ),
-          ProfileTextField(
-            icon: Icons.height,
-            label: 'Tinggi',
-          ),
-          ProfileTextField(
-            icon: Icons.monitor_weight,
-            label: 'Berat',
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              // Save the profile changes
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: EdgeInsets.symmetric(horizontal: 100, vertical: 12),
-            ),
-            child: Text(
-              'Simpan',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
 
 class ProfileTextField extends StatelessWidget {
+  final TextEditingController controller;
   final IconData icon;
   final String label;
 
-  ProfileTextField({required this.icon, required this.label});
+  const ProfileTextField({
+    required this.controller,
+    required this.icon,
+    required this.label,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 50, vertical: 5),
-      padding: EdgeInsets.all(15),
+      margin: const EdgeInsets.symmetric(horizontal: 50, vertical: 10),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -159,98 +200,14 @@ class ProfileTextField extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, color: Colors.blue),
-          SizedBox(width: 20),
+          const SizedBox(width: 20),
           Expanded(
             child: TextField(
+              controller: controller,
               decoration: InputDecoration(
                 hintText: label,
                 border: InputBorder.none,
               ),
-            ),
-          ),
-          Icon(Icons.edit, color: Colors.grey[600]),
-        ],
-      ),
-    );
-  }
-}
-
-// Bottom sheet untuk pilihan foto profil
-class PopupUploadFoto extends StatelessWidget {
-  final Future Function() pickImage;
-  final Future Function() pickImageC;
-
-  PopupUploadFoto({required this.pickImage, required this.pickImageC});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Foto Profil',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              IconButton(
-                icon: Icon(Icons.close),
-                onPressed: () {
-                  Navigator.pop(context); // Menutup pop-up
-                },
-              ),
-            ],
-          ),
-          SizedBox(height: 20),
-          Icon(
-            Icons.person,
-            size: 40,
-            color: Colors.grey[700],
-          ),
-          SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity, // Mengatur lebar tombol sampai mentok
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => CameraView()),
-                );
-                // pickImageC(); // Mengambil gambar dari kamera
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                padding: EdgeInsets.symmetric(vertical: 15),
-              ),
-              icon: Icon(Icons.camera_alt, color: Colors.white),
-              label: Text('Unggah Foto', style: TextStyle(color: Colors.white)),
-            ),
-          ),
-          SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity, // Mengatur lebar tombol sampai mentok
-            child: OutlinedButton.icon(
-              onPressed: () {
-                pickImage(); // Mengambil gambar dari galeri
-              },
-              style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                padding: EdgeInsets.symmetric(vertical: 15),
-              ),
-              icon: Icon(Icons.photo_library, color: Colors.black),
-              label: Text('Gunakan Galeri', style: TextStyle(color: Colors.black)),
             ),
           ),
         ],

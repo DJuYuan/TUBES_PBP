@@ -6,75 +6,80 @@ class BarcodeScannerPageView extends StatefulWidget {
   const BarcodeScannerPageView({Key? key}) : super(key: key);
 
   @override
-  _BarcodeScannerPageViewState createState() => _BarcodeScannerPageViewState();
+  _BarcodeScannerPageViewState createState() =>
+      _BarcodeScannerPageViewState();
 }
 
-class _BarcodeScannerPageViewState extends State<BarcodeScannerPageView> 
-    with SingleTickerProviderStateMixin {
+class _BarcodeScannerPageViewState extends State<BarcodeScannerPageView> {
   BarcodeCapture? capture;
+  MobileScannerController controller = MobileScannerController(torchEnabled: false);
+  bool isQRCodeScanned = false; // Track if QR code is scanned
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
 
   Widget cameraView() {
-    return Builder(
-      builder: (context) {
-        return Stack(
-          children: [
-            MobileScanner(
-              startDelay: true,
-              controller: MobileScannerController(torchEnabled: false),
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, child) {
-                return ScannerErrorWidget(error: error);
-              },
-              onDetect: (capture) {
-                setState(() {
-                  this.capture = capture;
-                });
-              },
+    return Stack(
+      children: [
+        MobileScanner(
+          controller: controller,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, child) {
+            return ScannerErrorWidget(error: error);
+          },
+          onDetect: (capture) {
+            setState(() {
+              this.capture = capture;
+              isQRCodeScanned = true; // Set to true when QR code is detected
+            });
+            final qrCode = capture.barcodes.first.rawValue;
+            if (qrCode != null) {
+              handleQRCodeDetected(qrCode);
+            }
+          },
+        ),
+        if (isQRCodeScanned) // Show checkmark when QR code is scanned
+          Positioned(
+            top: 20,
+            left: 20,
+            child: Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 50,
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                alignment: Alignment.bottomCenter,
-                height: 100,
-                color: Colors.black.withOpacity(0.4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Center(
-                      child: SizedBox(
-                        width: MediaQuery.of(context).size.width - 120,
-                        height: 50,
-                        child: FittedBox(
-                          child: GestureDetector(
-                            onTap: () {
-                              final qrCode = capture?.barcodes.first.rawValue;
-                              if (qrCode != null) {
-                                copyToClipboard(qrCode);
-                              }
-                            },
-                            child: Text(
-                              capture?.barcodes.first.rawValue ?? 'Scan something & click to copy to clipboard',
-                              overflow: TextOverflow.fade,
-                              style: Theme.of(context).textTheme.headlineMedium!.copyWith(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+          ),
+        Positioned(
+          bottom: 20,
+          left: 20,
+          child: FloatingActionButton(
+            heroTag: "cameraSwitch", // Hero tag unik untuk tombol kamera
+            onPressed: () {
+              controller.switchCamera();
+            },
+            backgroundColor: Colors.blue,
+            child: Icon(Icons.cameraswitch, color: Colors.white),
+          ),
+        ),
+      ],
     );
+  }
+
+  void handleQRCodeDetected(String qrCode) {
+    copyToClipboard(qrCode);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Berhasil membaca QR Code: $qrCode')),
+    );
+    // Setelah QR Code berhasil dipindai, kembali ke halaman sebelumnya
+    Navigator.pop(context, true); // Mengirim true ke halaman profil
   }
 
   void copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('QR code disalin ke clipboard')),
+      SnackBar(content: Text('QR Code disalin ke clipboard')),
     );
   }
 
@@ -82,12 +87,16 @@ class _BarcodeScannerPageViewState extends State<BarcodeScannerPageView>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: PageView(
-        children: [
-          cameraView(),
-          Container(),
-        ],
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'QR Code Scanner',
+          style: TextStyle(color: Colors.white),
+        ),
+        centerTitle: true,
       ),
+      body: cameraView(),
     );
   }
 }
@@ -103,16 +112,16 @@ class ScannerErrorWidget extends StatelessWidget {
 
     switch (error.errorCode) {
       case MobileScannerErrorCode.controllerUninitialized:
-        errorMessage = 'Controller not ready.';
+        errorMessage = 'Controller tidak siap.';
         break;
       case MobileScannerErrorCode.permissionDenied:
-        errorMessage = 'Permission denied';
+        errorMessage = 'Izin kamera ditolak.';
         break;
       default:
-        errorMessage = 'Generic Error';
+        errorMessage = 'Kesalahan Umum.';
         break;
     }
-    
+
     return ColoredBox(
       color: Colors.black,
       child: Center(
