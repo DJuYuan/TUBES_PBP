@@ -34,7 +34,7 @@ class HistoryPage extends StatelessWidget {
               date: "14-Oct-2024",
               rating: 4, // Rating bintang dari 1-5
               image: Image.asset(
-                'images/abs.jpeg',
+                'assets/abs.jpeg',
                 fit: BoxFit.cover,
                 width: 120,
                 height: 80,

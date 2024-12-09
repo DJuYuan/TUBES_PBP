@@ -1,13 +1,12 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:guidedlayout2_1748/View/Profile/editProfile.dart';
-import 'package:guidedlayout2_1748/View/Profile/pengaturan.dart';
-import 'package:guidedlayout2_1748/View/Profile/review.dart';
-import 'package:guidedlayout2_1748/View/Profile/histori.dart';
-import 'package:guidedlayout2_1748/View/Profile/Camera/qr_scan.dart';
+import 'package:guidedlayout2_1748/Profile/editProfile.dart';
+import 'package:guidedlayout2_1748/Profile/pengaturan.dart';
+import 'package:guidedlayout2_1748/Profile/review.dart';
+import 'package:guidedlayout2_1748/Profile/histori.dart';
+import 'package:guidedlayout2_1748/Profile/Camera/qr_scan.dart';
 import 'package:guidedlayout2_1748/entity/user.dart'; // Import model User
-import 'package:guidedlayout2_1748/client/user.dart';
+import 'package:guidedlayout2_1748/client/UserClient.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -28,8 +27,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _fetchUserProfile() {
     setState(() {
-      _userProfile = UserClient.fetchUserProfile();
+      _userProfile = _getUserProfile();
     });
+  }
+
+  Future<User> _getUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) {
+      throw Exception('Token not found');
+    }
+    return UserClient.fetchUserProfile(token);
   }
 
   // Fungsi untuk menangani pemindaian QR Code
@@ -226,7 +234,7 @@ class _ProfilePageState extends State<ProfilePage> {
               },
               backgroundColor: Colors.blue,
               child: Image.asset(
-                'images/scanner.png',
+                'assets/scanner.png',
                 fit: BoxFit.cover,
                 width: 30,
                 height: 30,
@@ -324,4 +332,3 @@ class ProfileMenuItem extends StatelessWidget {
     );
   }
 }
-

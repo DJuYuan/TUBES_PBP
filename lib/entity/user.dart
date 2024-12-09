@@ -18,7 +18,7 @@ class User {
   });
 
   factory User.fromRawJson(String str) => User.fromJson(json.decode(str));
-  factory User.fromJson(Map<String, dynamic> json) 
+  factory User.fromJson(Map<String, dynamic> json)
     => User(
       id: json['id'].toString(),
       username: json['username'],

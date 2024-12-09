@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:guidedlayout2_1748/View/login.dart';
-import 'package:guidedlayout2_1748/component/form_component.dart';
+//import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:http/http.dart' as http;
 
 class RegisterView extends StatefulWidget {
-  const RegisterView({super.key});
+  const RegisterView({Key? key}) : super(key: key);
 
   @override
   State<RegisterView> createState() => _RegisterViewState();
@@ -16,20 +19,149 @@ class _RegisterViewState extends State<RegisterView> {
   TextEditingController passwordController = TextEditingController();
   TextEditingController weightController = TextEditingController();
   TextEditingController heightController = TextEditingController();
+  String _gender = "laki-laki";
 
-  String _gender = "Male"; // Default gender
+Future<void> register() async {
+  final url = Uri.parse('http://10.0.2.2:8000/api/register'); // Endpoint API
+  try {
+    // Tampilkan dialog loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    // Kirim data ke API
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json', // Header untuk JSON
+        'Accept': 'application/json', // Header tambahan untuk Laravel
+      },
+      body: jsonEncode({
+        'username': usernameController.text.trim(),
+        'email': emailController.text.trim(),
+        'password': passwordController.text,
+        'password_confirmation': passwordController.text,
+        'berat': weightController.text.trim(),
+        'tinggi': heightController.text.trim(),
+        'gender': _gender,
+      }),
+    );
+
+    // Tutup dialog loading
+    Navigator.of(context).pop();
+
+    if (response.statusCode == 201) {
+      // Jika registrasi berhasil
+      final responseData = jsonDecode(response.body);
+
+      // Toast sukses
+      Fluttertoast.showToast(
+        msg: responseData['message'] ?? 'Registrasi berhasil!',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+
+      // Dialog sukses
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Berhasil Registrasi'),
+          content: Text(responseData['message'] ?? 'Registrasi berhasil!'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginView()),
+                );
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } else if (response.statusCode == 400 || response.statusCode == 422) {
+      // Jika validasi gagal
+      final responseData = jsonDecode(response.body);
+      final errorMessage = responseData['message'] ?? 'Error during registration';
+
+      // Toast error
+      Fluttertoast.showToast(
+        msg: errorMessage,
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+
+      // Dialog error
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Error'),
+          content: Text(errorMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      throw Exception('Unexpected error occurred');
+    }
+  } catch (e) {
+    // Penanganan error koneksi
+    Navigator.of(context).pop(); // Tutup dialog loading
+
+    // Toast error koneksi
+    Fluttertoast.showToast(
+      msg: 'Failed to connect to server: $e',
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+
+    // Dialog error koneksi
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text('Failed to connect to server: $e'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.white, // Warna latar belakang
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Header Text
+                // Header teks
                 const Text(
                   'Hey there,',
                   style: TextStyle(
@@ -42,23 +174,21 @@ class _RegisterViewState extends State<RegisterView> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 20),
 
-                // Form container with gradient background
+                // Form Container
                 Container(
                   width: 350,
                   padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFB0E0E6), Color(0xFFE0BBE4)], // Soft pastel gradient
+                      colors: [Color(0xFFB0E0E6), Color(0xFFE0BBE4)],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
-                    borderRadius: BorderRadius.circular(25),
+                    borderRadius: BorderRadius.circular(30),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black12,
@@ -68,192 +198,111 @@ class _RegisterViewState extends State<RegisterView> {
                     ],
                   ),
                   child: Form(
-                    key: _formKey,
+                    key: _formKey, // Menghubungkan form ke validasi
                     child: Column(
                       children: [
-                        // Username
-                        inputForm(
-                          (p0) {
-                            if (p0 == null || p0.isEmpty) {
+                        // Input Username
+                        _buildInputField(
+                          hint: "User",
+                          icon: Icons.person,
+                          controller: usernameController,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
                               return 'Username tidak boleh kosong';
                             }
                             return null;
                           },
-                          controller: usernameController,
-                          hintTxt: "User",
-                          helperTxt: "",
-                          iconData: Icons.person,
                         ),
                         const SizedBox(height: 15),
 
-                        // Email
-                        inputForm(
-                          (p0) {
-                            if (p0 == null || p0.isEmpty) {
+                        // Input Email
+                        _buildInputField(
+                          hint: "Email",
+                          icon: Icons.email,
+                          controller: emailController,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
                               return 'Email tidak boleh kosong';
                             }
                             return null;
                           },
-                          controller: emailController,
-                          hintTxt: "Email",
-                          helperTxt: "",
-                          iconData: Icons.email,
                         ),
                         const SizedBox(height: 15),
 
-                        // Password
-                        inputForm(
-                          (p0) {
-                            if (p0 == null || p0.isEmpty) {
+                        // Input Password
+                        _buildInputField(
+                          hint: "Password",
+                          icon: Icons.lock,
+                          controller: passwordController,
+                          isPassword: true,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
                               return 'Password tidak boleh kosong';
                             }
                             return null;
                           },
-                          controller: passwordController,
-                          hintTxt: "Password",
-                          helperTxt: "",
-                          iconData: Icons.lock,
-                          password: true,
                         ),
                         const SizedBox(height: 15),
 
-                        // Weight with KG button
+                        // Input Berat
+                        _buildInputField(
+                          hint: "Berat (KG)",
+                          icon: Icons.monitor_weight,
+                          controller: weightController,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Weight tidak boleh kosong';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 15),
+
+                        // Input Tinggi
+                        _buildInputField(
+                          hint: "Tinggi (CM)",
+                          icon: Icons.height,
+                          controller: heightController,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Height tidak boleh kosong';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 15),
+
+                        // Pilihan Gender
                         Row(
                           children: [
-                            Expanded(
-                              child: inputForm(
-                                (p0) {
-                                  if (p0 == null || p0.isEmpty) {
-                                    return 'Weight tidak boleh kosong';
-                                  }
-                                  return null;
-                                },
-                                controller: weightController,
-                                hintTxt: "Your Weight",
-                                helperTxt: "",
-                                iconData: Icons.monitor_weight,
-                              ),
-                            ),
+                             _buildGenderRadio("Laki-laki", "laki-laki"), // Nilai untuk API adalah "laki-laki"
                             const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
-                              decoration: BoxDecoration(
-                                color: Color(0xFFF06292),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Text(
-                                "KG",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 15),
-
-                        // Height with CM button
-                        Row(
-                          children: [
-                            Expanded(
-                              child: inputForm(
-                                (p0) {
-                                  if (p0 == null || p0.isEmpty) {
-                                    return 'Height tidak boleh kosong';
-                                  }
-                                  return null;
-                                },
-                                controller: heightController,
-                                hintTxt: "Your Height",
-                                helperTxt: "",
-                                iconData: Icons.height,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
-                              decoration: BoxDecoration(
-                                color: Color(0xFFBA68C8),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Text(
-                                "CM",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 15),
-
-                        // Gender Selection
-                        inputForm(
-                          (p0) => null,
-                          controller: TextEditingController(),
-                          hintTxt: "Choose Gender",
-                          helperTxt: "",
-                          iconData: Icons.transgender,
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Gender Radio Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Radio<String>(
-                              value: 'Male',
-                              groupValue: _gender,
-                              onChanged: (String? value) {
-                                setState(() {
-                                  _gender = value!;
-                                });
-                              },
-                            ),
-                            const Text('Male'),
-                            Radio<String>(
-                              value: 'Female',
-                              groupValue: _gender,
-                              onChanged: (String? value) {
-                                setState(() {
-                                  _gender = value!;
-                                });
-                              },
-                            ),
-                            const Text('Female'),
+                           _buildGenderRadio("Perempuan", "perempuan"), // Nilai untuk API adalah "perempuan"
                           ],
                         ),
                         const SizedBox(height: 20),
 
-                        // Register Button
+                        // Tombol Register
                         ElevatedButton(
                           onPressed: () {
                             if (_formKey.currentState!.validate()) {
-                              Map<String, dynamic> formData = {
-                                'username': usernameController.text,
-                                'email': emailController.text,
-                                'password': passwordController.text,
-                                'weight': weightController.text,
-                                'height': heightController.text,
-                                'gender': _gender,
-                              };
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => LoginView(data: formData),
-                                ),
-                              );
+                              register(); // Panggil fungsi register
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 15),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 120, vertical: 15),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
-                            backgroundColor: Color(0xFF6A5ACD),
-                            elevation: 8,
+                            backgroundColor: const Color(0xFF6A5ACD),
                           ),
                           child: const Text(
                             'Register',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
                         ),
@@ -263,24 +312,11 @@ class _RegisterViewState extends State<RegisterView> {
                 ),
                 const SizedBox(height: 25),
 
-                // Divider and Login link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Expanded(child: Divider(color: Colors.grey)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text("Or", style: TextStyle(color: Colors.grey)),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
+                // Login Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Already have an account?"),
+                    const Text("Already have an account? "),
                     TextButton(
                       onPressed: () {
                         Navigator.push(
@@ -290,7 +326,10 @@ class _RegisterViewState extends State<RegisterView> {
                       },
                       child: const Text(
                         'Login',
-                        style: TextStyle(color: Color(0xFF8A2BE2)),
+                        style: TextStyle(
+                          color: Color(0xFF8A2BE2),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -302,4 +341,46 @@ class _RegisterViewState extends State<RegisterView> {
       ),
     );
   }
+
+  // Helper untuk membuat input field
+  Widget _buildInputField({
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    bool isPassword = false,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword,
+      validator: validator,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+    );
+  }
+
+  // Helper untuk pilihan gender
+  Widget _buildGenderRadio(String displayText, String valueForApi) {
+  return Row(
+    children: [
+      Radio<String>(
+        value: valueForApi, // Nilai sesuai format API
+        groupValue: _gender,
+        onChanged: (String? value) {
+          setState(() {
+            _gender = value!;
+          });
+        },
+      ),
+      Text(displayText),
+    ],
+  );
+}
 }

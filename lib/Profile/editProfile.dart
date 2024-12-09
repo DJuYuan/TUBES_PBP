@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert'; 
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:guidedlayout2_1748/entity/user.dart';  // Mengimpor User
-import 'package:guidedlayout2_1748/client/user.dart';  // Mengimpor fungsi dari client
+import 'package:guidedlayout2_1748/client/UserClient.dart';  // Mengimpor fungsi dari client
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -29,7 +28,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // Mengambil data profil pengguna
   Future<void> fetchUserProfileData() async {
     try {
-      User user = await UserClient.fetchUserProfile();  // Menggunakan fungsi fetchUserProfile yang diimpor
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      if (token == null) {
+        throw Exception('Token not found');
+      }
+
+      User user = await UserClient.fetchUserProfile(token);  // Menggunakan fungsi fetchUserProfile yang diimpor
       setState(() {
         userId = user.id;
         usernameController.text = user.username;
@@ -57,40 +63,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   // Fungsi untuk memperbarui profil pengguna
   Future<void> updateUserProfileData() async {
-    
-      // Membuat objek User dari input data
-      
-      User updatedUser = User(
-        id: userId,
-        username: usernameController.text,
-        berat: int.parse(weightController.text),
-        tinggi: int.parse(heightController.text),
-      );
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    print("Fetched token: $token");
 
-    try {  
-      await UserClient.updateUserProfile(updatedUser);
-      // Memanggil fungsi updateUserProfile
-      // final response = await updateUserProfile(updatedUser);
-      // final response = await http.put(
-      //   Uri.parse('https://10.0.2.2:8000/api/users'),
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     // 'Authorization': 'Bearer YOUR_API_TOKEN',
-      //   },
-      //   body: json.encode(updatedUser),
-      // );
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Token not found. Please log in again.")));
+      return;
+    }
 
-      // User user = await fetchUserProfile();
+    // Membuat objek User dari input data
+    User updatedUser = User(
+      id: userId,
+      username: usernameController.text,
+      berat: int.parse(weightController.text),
+      tinggi: int.parse(heightController.text),
+    );
 
-      // if (response.statusCode == 200) {
-      //   // ScaffoldMessenger.of(context).showSnackBar(
-      //   //   const SnackBar(content: Text('Profile updated successfully!')),
-      //   // );
-        await fetchUserProfileData();
-        Navigator.pop(context, true);
-      // } else {
-      //   throw Exception('Failed to update profile: ${response.reasonPhrase}');
-      // }
+    try {
+      // Menggunakan fungsi updateUserProfile untuk memperbarui data pengguna
+      await UserClient.update(updatedUser, token);
+
+      // Memanggil fungsi untuk mendapatkan data terbaru setelah pembaruan
+      await fetchUserProfileData();
+      Navigator.pop(context, true);
     } catch (err) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error updating profile: $err")),

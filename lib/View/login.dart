@@ -1,12 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:guidedlayout2_1748/Home/home.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:http/http.dart' as http;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:guidedlayout2_1748/View/home.dart';
 import 'package:guidedlayout2_1748/View/register.dart';
-import 'package:guidedlayout2_1748/component/form_component.dart';
 
 class LoginView extends StatefulWidget {
-  final Map? data;
-  const LoginView({super.key, this.data});
+  const LoginView({Key? key}) : super(key: key);
 
   @override
   State<LoginView> createState() => _LoginViewState();
@@ -14,35 +16,142 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
-
-  // Controllers untuk field username dan password
   TextEditingController usernameController = TextEditingController();
+  TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
-  Map<dynamic, dynamic>? dataForm;
 
-  @override
-  void initState() {
-    super.initState();
-    dataForm = widget.data;
+  Future<void> login() async {
+  final url = Uri.parse('http://10.0.2.2:8000/api/login');
+  try {
+    // Tampilkan loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    // Siapkan data body
+    final body = {
+      'username': usernameController.text.isNotEmpty
+          ? usernameController.text
+          : null,
+      'email': emailController.text.isNotEmpty
+          ? emailController.text
+          : null,
+      'password': passwordController.text,
+    };
+    body.removeWhere((key, value) => value == null);
+
+    // Kirim permintaan ke API
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    // Tutup loading dialog
+    Navigator.of(context).pop();
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final token = data['token'];
+
+      // Simpan token ke SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', token);
+      print("Fetched token: $token"); 
+
+      // Tampilkan toast sukses
+      Fluttertoast.showToast(
+        msg: "Login berhasil!",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+
+      // Navigasi ke HomeView
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeView()),
+      );
+    } else {
+      final error = jsonDecode(response.body)['message'] ?? 'Login gagal';
+
+      // Tampilkan toast error
+      Fluttertoast.showToast(
+        msg: error,
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+
+      // Tampilkan dialog error
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Login Failed'),
+          content: Text(error),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  } catch (e) {
+    Navigator.of(context).pop();
+
+    // Tampilkan toast error koneksi
+    Fluttertoast.showToast(
+      msg: 'Gagal terhubung ke server: $e',
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+
+    // Tampilkan dialog error koneksi
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Error'),
+        content: Text('Gagal terhubung ke server: $e'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Latar belakang utama berwarna putih
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Greeting text
+                // Header teks
                 const Text(
                   'Hey there,',
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Colors.black54,
-                  ),
+                  style: TextStyle(fontSize: 20, color: Colors.black54),
                 ),
                 const Text(
                   'Welcome Back',
@@ -52,75 +161,85 @@ class _LoginViewState extends State<LoginView> {
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 30),
 
-                // Container with gradient background
+                // Container input form
                 Container(
                   width: 350,
-                  padding: const EdgeInsets.all(20.0),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFB0C4DE), Color(0xFF87CEFA)], // Gradasi warna
+                      colors: [Color(0xFFB0C4DE), Color(0xFF87CEFA)],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Form(
-                    key: _formKey,
+                    key: _formKey, // Menyimpan status form
                     child: Column(
                       children: [
-                        // Username input
-                        inputForm(
-                          (p0) {
-                            if (p0 == null || p0.isEmpty) {
+                        // Input username
+                          TextFormField(
+                          controller: usernameController,
+                          decoration: InputDecoration(
+                            hintText: "Username",
+                            prefixIcon: Icon(Icons.person),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
                               return "Username tidak boleh kosong";
                             }
                             return null;
                           },
-                          controller: usernameController,
-                          hintTxt: "User",
-                          helperTxt: "",
-                          iconData: Icons.person,
                         ),
-                        const SizedBox(height: 12),
-
-                        // Email input
-                        inputForm(
-                          (p0) {
-                            if (p0 == null || p0.isEmpty) {
+                        const SizedBox(height: 20),
+                        // Input email
+                          TextFormField(
+                          controller: emailController,
+                          decoration: InputDecoration(
+                            hintText: "Email",
+                            prefixIcon: Icon(Icons.email),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
                               return "Email tidak boleh kosong";
                             }
                             return null;
                           },
-                          controller: TextEditingController(),
-                          hintTxt: "Email",
-                          helperTxt: "",
-                          iconData: Icons.email,
                         ),
-                        const SizedBox(height: 12),
-
-                        // Password input
-                        inputForm(
-                          (p0) {
-                            if (p0 == null || p0.isEmpty) {
+                        const SizedBox(height: 20),
+                        // Input password
+                        TextFormField(
+                          controller: passwordController,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            hintText: "Password",
+                            prefixIcon: Icon(Icons.lock),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
                               return "Password tidak boleh kosong";
                             }
                             return null;
                           },
-                          controller: passwordController,
-                          hintTxt: "Password",
-                          helperTxt: "",
-                          iconData: Icons.lock,
-                          password: true,
                         ),
-                        const SizedBox(height: 12),
-
-                        // Forgot password link
-                        Center(
+                        const SizedBox(height: 20),
+                        // Link lupa password
+                        Align(
+                          alignment: Alignment.center,
                           child: TextButton(
                             onPressed: () {
-                              // Tindakan untuk lupa password
+                              debugPrint("Forgot Password Clicked");
                             },
                             child: const Text(
                               'Forgot your password?',
@@ -138,10 +257,10 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 const SizedBox(height: 20),
 
-                // Login button
+                // Tombol Login
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF87CEFA),
+                    backgroundColor: const Color(0xFF87CEFA),
                     padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50),
@@ -150,35 +269,7 @@ class _LoginViewState extends State<LoginView> {
                   onPressed: () {
                     // Validasi form
                     if (_formKey.currentState!.validate()) {
-                      if (dataForm != null &&
-                          dataForm?['username'] == usernameController.text &&
-                          dataForm?['password'] == passwordController.text) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const HomeView(),
-                          ),
-                        );
-                      } else {
-                        // Menampilkan dialog jika login gagal
-                        showDialog(
-                          context: context,
-                          builder: (_) => AlertDialog(
-                            title: const Text('Login Gagal'),
-                            content: const Text('Username atau password salah.'),
-                            actions: <Widget>[
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, 'Cancel'),
-                                child: const Text('Cancel'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, 'OK'),
-                                child: const Text('OK'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
+                      login(); // Panggil fungsi login
                     }
                   },
                   child: const Text(
@@ -192,41 +283,41 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 const SizedBox(height: 20),
 
-                // Divider with "Or"
+                // Garis pembatas dengan teks "Or"
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Expanded(child: Divider(color: Colors.grey)),
-                    const Padding(
+                  children: const [
+                    Expanded(child: Divider(color: Colors.grey)),
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8.0),
                       child: Text("Or", style: TextStyle(color: Colors.grey)),
                     ),
-                    const Expanded(child: Divider(color: Colors.grey)),
+                    Expanded(child: Divider(color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 10),
 
-                // Social login buttons
+                // Tombol media sosial
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
                       icon: const FaIcon(FontAwesomeIcons.google, color: Colors.red),
                       onPressed: () {
-                        // Fungsionalitas login Google
+                        debugPrint("Google Login Clicked");
                       },
                     ),
+                    const SizedBox(width: 20),
                     IconButton(
                       icon: const FaIcon(FontAwesomeIcons.facebook, color: Colors.blue),
                       onPressed: () {
-                        // Fungsionalitas login Facebook
+                        debugPrint("Facebook Login Clicked");
                       },
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
 
-                // Register link
+                // Link Register
                 TextButton(
                   onPressed: () {
                     Navigator.push(

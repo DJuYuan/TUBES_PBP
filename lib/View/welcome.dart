@@ -8,7 +8,7 @@ class WelcomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFB3E5FC), // Background color light blue
+      backgroundColor: const Color(0xFFB3E5FC), // Background color light blue
       body: SafeArea(
         child: Center(
           child: Column(
@@ -16,65 +16,64 @@ class WelcomeView extends StatelessWidget {
             children: [
               // Logo
               Container(
-                width: 150,
-                height: 150,
+                width: 200,
+                height: 200,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black26,
-                      blurRadius: 10,
-                      offset: Offset(0, 5),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
                     ),
                   ],
-                  border: Border.all(color: Colors.blueAccent, width: 4),
                 ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Icon Gym or Fitness Illustration
-                      Icon(
-                        Icons.fitness_center,
-                        size: 70,
-                        color: Colors.blueAccent,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Custom Logo Image
+                    Image.asset(
+                      'assets/imagesGYM.png', // Pastikan logo sudah ada di path ini
+                      width: 160,
+                      height: 115,
+                      fit: BoxFit.cover,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "STAY FIT , STAY STRONG",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueGrey,
                       ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        "STAY FIT, STAY STRONG",
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blueGrey,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 50),
 
               // Welcome Text
               const Text(
                 'WELCOME TO',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black54,
+                  color: Colors.black87,
                 ),
               ),
+              const SizedBox(height: 10),
               const Text(
                 'Gym In\nFitness Zone',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Colors.black,
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 50),
 
               // Log in Button
               ElevatedButton(
@@ -90,6 +89,7 @@ class WelcomeView extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
+                  elevation: 5,
                 ),
                 child: const Text(
                   'Log in',
@@ -115,7 +115,7 @@ class WelcomeView extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
-                  side: BorderSide(color: Colors.black),
+                  side: const BorderSide(color: Colors.black, width: 2),
                 ),
                 child: const Text(
                   'Registration',
